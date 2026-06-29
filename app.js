@@ -704,6 +704,8 @@ let cart = [];
 let currentCategory = "all";
 let searchQuery = "";
 let itemBeingCustomized = null;
+let isScrollingFromTabClick = false;
+let tabClickScrollTimeout = null;
 
 // 4. WhatsApp Business Information
 const WHATSAPP_PHONE = "201061219807"; // Country code + phone (Egypt: +20)
@@ -798,16 +800,72 @@ function updatePageLock() {
     document.body.classList.toggle("modal-open", hasActiveOverlay);
 }
 
+function triggerHapticFeedback(pattern = 30) {
+    if (window.navigator && window.navigator.vibrate) {
+        try {
+            window.navigator.vibrate(pattern);
+        } catch (e) {
+            // Silently catch if blocked
+        }
+    }
+}
+
+function animateFlyingItem(startEl, imageUrl) {
+    if (!startEl) return;
+    
+    const isMobile = window.innerWidth <= 768;
+    const targetEl = isMobile 
+        ? document.getElementById("floatingCartBtn")
+        : document.getElementById("cartToggleBtn");
+        
+    if (!targetEl) return;
+    
+    const startRect = startEl.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    
+    const flyer = document.createElement("div");
+    flyer.className = "flying-preview-item";
+    flyer.style.backgroundImage = `url('${imageUrl}')`;
+    flyer.style.left = `${startRect.left + startRect.width / 2 - 24}px`;
+    flyer.style.top = `${startRect.top + startRect.height / 2 - 24}px`;
+    
+    document.body.appendChild(flyer);
+    
+    requestAnimationFrame(() => {
+        const diffX = (targetRect.left + targetRect.width / 2) - (startRect.left + startRect.width / 2);
+        const diffY = (targetRect.top + targetRect.height / 2) - (startRect.top + startRect.height / 2);
+        
+        flyer.style.transform = `translate(${diffX}px, ${diffY}px) scale(0.1)`;
+        flyer.style.opacity = "0.2";
+        flyer.style.width = "20px";
+        flyer.style.height = "20px";
+    });
+    
+    setTimeout(() => {
+        flyer.remove();
+        
+        targetEl.classList.remove("bump");
+        void targetEl.offsetWidth; // trigger reflow
+        targetEl.classList.add("bump");
+        
+        setTimeout(() => {
+            targetEl.classList.remove("bump");
+        }, 500);
+    }, 800);
+}
+
 function openModal(modal) {
     modal.classList.add("active");
     modal.setAttribute("aria-hidden", "false");
     updatePageLock();
+    triggerHapticFeedback(30);
 }
 
 function closeModal(modal) {
     modal.classList.remove("active");
     modal.setAttribute("aria-hidden", "true");
     updatePageLock();
+    triggerHapticFeedback(15);
 }
 
 function createImageFallback() {
@@ -902,8 +960,10 @@ function renderCategories() {
     document.querySelectorAll(".category-tab").forEach(tab => {
         tab.addEventListener("click", (e) => {
             const button = e.currentTarget;
-            currentCategory = button.getAttribute("data-category-id");
+            const catId = button.getAttribute("data-category-id");
             
+            centerActiveCategoryTab(button);
+
             // Update active styling
             document.querySelectorAll(".category-tab").forEach(t => {
                 t.classList.remove("active");
@@ -912,92 +972,177 @@ function renderCategories() {
             button.classList.add("active");
             button.setAttribute("aria-pressed", "true");
 
-            // Re-render
-            renderProducts();
+            if (tabClickScrollTimeout) clearTimeout(tabClickScrollTimeout);
+            isScrollingFromTabClick = true;
+            
+            let targetTop = 0;
+            if (catId !== "all") {
+                const sectionEl = document.getElementById(`section-${catId}`);
+                if (sectionEl) {
+                    targetTop = sectionEl.offsetTop - 135;
+                }
+            } else {
+                const catalogEl = document.getElementById("productsGrid");
+                if (catalogEl) {
+                    targetTop = catalogEl.offsetTop - 145;
+                }
+            }
+            
+            window.scrollTo({
+                top: targetTop,
+                behavior: "smooth"
+            });
+            
+            currentCategory = catId;
+            updateCategoryHeadingFromScroll();
+
+            tabClickScrollTimeout = setTimeout(() => {
+                isScrollingFromTabClick = false;
+            }, 850);
         });
     });
 }
 
+function centerActiveCategoryTab(tabEl) {
+    if (!tabEl || !categoriesContainer) return;
+    
+    const containerWidth = categoriesContainer.offsetWidth;
+    const tabLeft = tabEl.offsetLeft;
+    const tabWidth = tabEl.offsetWidth;
+    
+    const scrollTarget = tabLeft - (containerWidth / 2) + (tabWidth / 2);
+    
+    categoriesContainer.scrollTo({
+        left: scrollTarget,
+        behavior: "smooth"
+    });
+}
+
+function updateCategoryHeadingFromScroll() {
+    if (!currentCategoryHeading) return;
+    const baseTitle = searchQuery.trim() ? `نتائج البحث عن "${searchQuery.trim()}"` : getCurrentCategoryTitle();
+    
+    let count = 0;
+    if (currentCategory === "all") {
+        count = MENU_DATA.length;
+    } else {
+        count = MENU_DATA.filter(item => item.category === currentCategory).length;
+    }
+    
+    currentCategoryHeading.textContent = `${baseTitle} (${formatPrice(count)})`;
+}
+
+// Scrollspy behavior with requestAnimationFrame throttling to prevent layout thrashing
+let isScrollChecking = false;
+
+window.addEventListener("scroll", () => {
+    if (searchQuery.trim() !== "" || isScrollingFromTabClick || isScrollChecking) return;
+    
+    isScrollChecking = true;
+    requestAnimationFrame(() => {
+        const headers = document.querySelectorAll(".category-section-header");
+        let activeSectionId = "all";
+        
+        const scrollPos = window.scrollY + 180; // Header offset
+        
+        headers.forEach(header => {
+            if (scrollPos >= header.offsetTop) {
+                activeSectionId = header.getAttribute("data-category-id");
+            }
+        });
+        
+        if (currentCategory !== activeSectionId) {
+            currentCategory = activeSectionId;
+            updateCategoryHeadingFromScroll();
+            
+            // Update active tab styles
+            const tabs = document.querySelectorAll(".category-tab");
+            tabs.forEach(tab => {
+                const catId = tab.getAttribute("data-category-id");
+                if (catId === activeSectionId) {
+                    tab.classList.add("active");
+                    tab.setAttribute("aria-pressed", "true");
+                    centerActiveCategoryTab(tab);
+                } else {
+                    tab.classList.remove("active");
+                    tab.setAttribute("aria-pressed", "false");
+                }
+            });
+        }
+        isScrollChecking = false;
+    });
+});
+
+// --- Render Products Catalog Grid ---
 // --- Render Products Catalog Grid ---
 function renderProducts() {
-    // Filter by Category and Search Query
-    let filteredList = MENU_DATA;
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    if (currentCategory !== "all") {
-        filteredList = filteredList.filter(item => item.category === currentCategory);
-    }
-
+    // If searching, we show a flat list of matching products
     if (normalizedQuery !== "") {
-        filteredList = filteredList.filter(item => 
+        let filteredList = MENU_DATA.filter(item => 
             item.nameAr.toLowerCase().includes(normalizedQuery) ||
             item.nameEn.toLowerCase().includes(normalizedQuery) ||
             item.desc.toLowerCase().includes(normalizedQuery)
         );
-    }
 
-    updateCategoryHeading(filteredList.length);
+        updateCategoryHeading(filteredList.length);
 
-    if (filteredList.length === 0) {
-        productsGrid.innerHTML = `
-            <div class="no-results-state">
-                <div class="no-results-icon">🔍</div>
-                <h3 class="no-results-title">لم نجد أي صنف يطابق بحثك!</h3>
-                <p class="no-results-copy">جرّب كلمة أبسط، أو انتقل لتصنيف آخر من الشريط بالأعلى.</p>
-                ${searchQuery.trim() ? `<button type="button" class="no-results-clear-btn" id="clearSearchBtn">مسح البحث</button>` : ''}
-            </div>
-        `;
-        replaceEmojisInDOM(productsGrid);
-        const clearSearchBtn = document.getElementById("clearSearchBtn");
-        if (clearSearchBtn) {
-            clearSearchBtn.addEventListener("click", () => {
-                searchQuery = "";
-                searchInputs.forEach(input => input.value = "");
-                renderProducts();
-            });
+        if (filteredList.length === 0) {
+            productsGrid.innerHTML = `
+                <div class="no-results-state">
+                    <div class="no-results-icon">🔍</div>
+                    <h3 class="no-results-title">لم نجد أي صنف يطابق بحثك!</h3>
+                    <p class="no-results-copy">جرّب كلمة أبسط، أو انتقل لتصنيف آخر من الشريط بالأعلى.</p>
+                    <button type="button" class="no-results-clear-btn" id="clearSearchBtn">مسح البحث</button>
+                </div>
+            `;
+            replaceEmojisInDOM(productsGrid);
+            const clearSearchBtn = document.getElementById("clearSearchBtn");
+            if (clearSearchBtn) {
+                clearSearchBtn.addEventListener("click", () => {
+                    searchQuery = "";
+                    searchInputs.forEach(input => input.value = "");
+                    renderProducts();
+                });
+            }
+            return;
         }
-        return;
+
+        productsGrid.innerHTML = filteredList.map((item, index) => renderProductCard(item, index)).join('');
+    } else {
+        // Normal grouped view: group items by categories
+        let htmlContent = "";
+        let totalCount = 0;
+        let globalIndex = 0;
+
+        CATEGORIES.forEach(cat => {
+            if (cat.id === "all") return;
+
+            const catProducts = MENU_DATA.filter(item => item.category === cat.id);
+            if (catProducts.length === 0) return;
+
+            totalCount += catProducts.length;
+
+            // Add Category Section Header inside the grid
+            htmlContent += `
+                <div class="category-section-header" id="section-${cat.id}" data-category-id="${cat.id}">
+                    <span class="category-header-emoji">${cat.emoji}</span>
+                    <span>${escapeHTML(cat.nameAr)}</span>
+                </div>
+            `;
+
+            // Add product cards of this category with sequential global delay index
+            htmlContent += catProducts.map(item => {
+                const cardHtml = renderProductCard(item, globalIndex);
+                globalIndex++;
+                return cardHtml;
+            }).join('');
+        });
+
+        updateCategoryHeading(totalCount);
+        productsGrid.innerHTML = htmlContent;
     }
-
-    productsGrid.innerHTML = filteredList.map(item => {
-        const cartItem = cart.find(ci => ci.id === item.id && !ci.hasCustomOptions);
-        const qtyInCart = cartItem ? cartItem.qty : 0;
-        const safeName = escapeHTML(item.nameAr);
-        const safeDesc = escapeHTML(item.desc);
-        const safeImage = escapeHTML(item.image);
-        const safeBadge = item.badge ? escapeHTML(item.badge) : "";
-
-        return `
-            <div class="product-card" data-product-id="${item.id}">
-                <div class="product-image-container">
-                    <img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy">
-                    ${safeBadge ? `<span class="product-badge">${safeBadge}</span>` : ''}
-                    <div class="product-price">${formatPrice(item.price)}<span>ج.م</span></div>
-                </div>
-                <div class="product-info">
-                    <h3 class="product-title">${safeName}</h3>
-                    <p class="product-desc">${safeDesc}</p>
-                    
-                    <div class="product-actions">
-                        ${qtyInCart > 0 ? `
-                            <div class="card-quantity-controls">
-                                <button class="card-qty-btn decrease-qty-btn" type="button" data-product-id="${item.id}" aria-label="تقليل ${safeName}">-</button>
-                                <span class="card-qty-value">${formatPrice(qtyInCart)}</span>
-                                <button class="card-qty-btn increase-qty-btn" type="button" data-product-id="${item.id}" aria-label="زيادة ${safeName}">+</button>
-                            </div>
-                        ` : `
-                            <button class="add-to-cart-btn direct-add-btn" type="button" data-product-id="${item.id}" aria-label="إضافة ${safeName} للسلة">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                </svg>
-                                <span>إضافة للسلة</span>
-                            </button>
-                        `}
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
 
     // Replace unicode emojis in products grid
     replaceEmojisInDOM(productsGrid);
@@ -1005,6 +1150,47 @@ function renderProducts() {
 
     // Attach actions
     attachCardActionListeners();
+}
+
+function renderProductCard(item, index = 0) {
+    const cartItem = cart.find(ci => ci.id === item.id && !ci.hasCustomOptions);
+    const qtyInCart = cartItem ? cartItem.qty : 0;
+    const safeName = escapeHTML(item.nameAr);
+    const safeDesc = escapeHTML(item.desc);
+    const safeImage = escapeHTML(item.image);
+    const safeBadge = item.badge ? escapeHTML(item.badge) : "";
+    const delay = index * 40; // 40ms stagger offset
+
+    return `
+        <div class="product-card" data-product-id="${item.id}" style="animation-delay: ${delay}ms;">
+            <div class="product-image-container">
+                <img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy">
+                ${safeBadge ? `<span class="product-badge">${safeBadge}</span>` : ''}
+                <div class="product-price">${formatPrice(item.price)}<span>ج.م</span></div>
+            </div>
+            <div class="product-info">
+                <h3 class="product-title">${safeName}</h3>
+                <p class="product-desc">${safeDesc}</p>
+                
+                <div class="product-actions">
+                    ${qtyInCart > 0 ? `
+                        <div class="card-quantity-controls">
+                            <button class="card-qty-btn decrease-qty-btn" type="button" data-product-id="${item.id}" aria-label="تقليل ${safeName}">-</button>
+                            <span class="card-qty-value">${formatPrice(qtyInCart)}</span>
+                            <button class="card-qty-btn increase-qty-btn" type="button" data-product-id="${item.id}" aria-label="زيادة ${safeName}">+</button>
+                        </div>
+                    ` : `
+                        <button class="add-to-cart-btn direct-add-btn" type="button" data-product-id="${item.id}" aria-label="إضافة ${safeName} للسلة">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                            <span>إضافة للسلة</span>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // --- Attach Actions to Catalog Cards ---
@@ -1018,6 +1204,7 @@ function attachCardActionListeners() {
             if (product.customizable) {
                 openCustomizerModal(product);
             } else {
+                animateFlyingItem(e.currentTarget, product.image);
                 addToCart(product);
             }
         });
@@ -1108,7 +1295,8 @@ function addToCart(product, selectedToppings = []) {
     updateCartUI();
     renderProducts(); // Refresh buttons on catalog
     
-    showToast(`تمت إضافة "${product.nameAr}" بنجاح 🤤`, "success");
+    triggerHapticFeedback(40); // 40ms pulse
+    showToast(`تمت إضافة "${product.nameAr}" بنجاح`, "success");
 }
 
 // --- Update Cart Quantity ---
@@ -1121,9 +1309,11 @@ function updateCartItemQuantity(uniqueId, newQty) {
         // Remove item
         const removedItemName = cart[itemIndex].nameAr;
         cart.splice(itemIndex, 1);
+        triggerHapticFeedback([40, 30, 40]); // Double vibration tap
         showToast(`تم حذف "${removedItemName}" من السلة`);
     } else {
         cart[itemIndex].qty = Math.min(newQty, 99);
+        triggerHapticFeedback(25); // 25ms pulse
     }
 
     saveCartToStorage();
@@ -1142,12 +1332,28 @@ function updateCartUI() {
     if (cart.length === 0) {
         cartItemsList.innerHTML = `
             <div class="empty-cart-state">
-                <span class="empty-cart-icon">🛒</span>
+                <span class="empty-cart-icon pulsing-cupcake">🧁</span>
                 <p class="empty-cart-text">سلة المشتريات فارغة تماماً!</p>
                 <p class="empty-cart-subtext">تصفح المنيو وأضف أصنافك المفضلة لطلبها بسرعة.</p>
+                <button type="button" class="empty-cart-action-btn" id="startShoppingBtn">ابدأ التسوق ✨</button>
             </div>
         `;
         checkoutBtn.disabled = true;
+
+        const startShoppingBtn = document.getElementById("startShoppingBtn");
+        if (startShoppingBtn) {
+            startShoppingBtn.addEventListener("click", () => {
+                const closeBtn = document.getElementById("cartCloseBtn");
+                if (closeBtn) closeBtn.click();
+                const catalogEl = document.getElementById("productsGrid");
+                if (catalogEl) {
+                    window.scrollTo({
+                        top: catalogEl.offsetTop - 145,
+                        behavior: "smooth"
+                    });
+                }
+            });
+        }
     } else {
         checkoutBtn.disabled = false;
         cartItemsList.innerHTML = cart.map(item => {
@@ -1264,6 +1470,7 @@ function setupEventListeners() {
         cartOverlay.classList.add("active");
         setCartExpanded(true);
         updatePageLock();
+        triggerHapticFeedback(30);
     };
 
     const closeCart = () => {
@@ -1271,6 +1478,7 @@ function setupEventListeners() {
         cartOverlay.classList.remove("active");
         setCartExpanded(false);
         updatePageLock();
+        triggerHapticFeedback(15);
     };
 
     cartToggleBtn.addEventListener("click", openCart);
@@ -1309,6 +1517,7 @@ function setupEventListeners() {
             }
         }
 
+        animateFlyingItem(confirmToppingBtn, itemBeingCustomized.image);
         addToCart(itemBeingCustomized, checkedToppings);
         closeCustomizerModal();
     });
@@ -1401,6 +1610,7 @@ function setupEventListeners() {
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_PHONE}&text=${encodedText}`;
         
         // 4. Open WhatsApp
+        triggerHapticFeedback([60, 40, 60]); // energetic confirmation haptic pulse
         const whatsappWindow = window.open(whatsappUrl, "_blank");
         if (!whatsappWindow) {
             showToast("المتصفح منع فتح واتساب. اسمح بالنوافذ المنبثقة وجرب مرة أخرى.", "error");
@@ -1640,7 +1850,13 @@ function replaceEmojisInDOM(node) {
                     .map(c => c.codePointAt(0).toString(16))
                     .filter(cp => cp !== 'fe0f')
                     .join('-');
-                return `<img class="apple-emoji" src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${codePoint}.png" alt="${match}">`;
+                
+                // Skip standard text symbols matched by the emoji regex
+                if (codePoint === 'a9' || codePoint === 'ae' || codePoint === '2122') {
+                    return match;
+                }
+                
+                return `<img class="apple-emoji" src="https://unpkg.com/emoji-datasource-apple@15.0.1/img/apple/64/${codePoint}.png" alt="${match}" onerror="this.replaceWith(this.alt)">`;
             });
             node.parentNode.replaceChild(span, node);
         }
