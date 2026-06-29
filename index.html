@@ -48,15 +48,15 @@
             </a>
 
             <!-- Search Bar in Header for Wide Screens -->
-            <div class="search-container" style="margin: 0; width: 280px; display: none;">
-                <input type="text" class="search-input" id="headerSearchInput" placeholder="ابحث عن صنفك المفضل...">
+            <div class="search-container header-search">
+                <input type="search" class="search-input" id="headerSearchInput" placeholder="ابحث عن صنفك المفضل..." aria-label="بحث سريع في المنيو" autocomplete="off">
                 <div class="search-icon">
                     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                 </div>
             </div>
 
             <!-- Cart Trigger Button -->
-            <button class="cart-btn" id="cartToggleBtn">
+            <button class="cart-btn" id="cartToggleBtn" type="button" aria-controls="cartDrawer" aria-expanded="false">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
                 </svg>
@@ -76,7 +76,7 @@
             <p class="hero-subtitle">تذوق أشهى دوناتس غرقانة حشوات، كوكيز عملاقة مقرمشة، وسينامون رولز طرية تذوب في الفم، محضرة طازجة يومياً بأجود المكونات!</p>
             
             <!-- WhatsApp Order Banner -->
-            <a href="https://api.whatsapp.com/send?phone=201061219807&text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20Emy%20Bakes%D8%8C%20%D8%A3%D9%88%D8%AF%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20%D8%A7%D9%84%D8%AD%D9%84%D9%88%D9%8A%D8%A7%D8%AA%20%D8%A7%D9%84%D9%85%D8%AA%D8%A7%D8%AD%D8%A9" target="_blank" class="promo-banner">
+            <a href="https://api.whatsapp.com/send?phone=201061219807&text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20Emy%20Bakes%D8%8C%20%D8%A3%D9%88%D8%AF%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20%D8%A7%D9%84%D8%AD%D9%84%D9%88%D9%8A%D8%A7%D8%AA%20%D8%A7%D9%84%D9%85%D8%AA%D8%A7%D8%AD%D8%A9" target="_blank" rel="noopener" class="promo-banner">
                 <div class="promo-content">
                     <div class="promo-icon-container">
                         <svg viewBox="0 0 448 512" class="promo-icon">
@@ -93,8 +93,8 @@
             </a>
             
             <!-- Search Bar -->
-            <div class="search-container">
-                <input type="text" class="search-input" id="searchInput" placeholder="ابحث عن كوكيز، دوناتس، أو تشيز كيك...">
+            <div class="search-container hero-search">
+                <input type="search" class="search-input" id="searchInput" placeholder="ابحث عن كوكيز، دوناتس، أو تشيز كيك..." aria-label="ابحث في قائمة منتجات Emy Bakes" autocomplete="off">
                 <div class="search-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/></svg>
                 </div>
@@ -110,30 +110,30 @@
         <section class="products-wrapper">
             <h2 class="category-heading" id="currentCategoryHeading">كل الأصناف</h2>
             
-            <div class="products-grid" id="productsGrid">
+            <div class="products-grid" id="productsGrid" aria-live="polite">
                 <!-- Skeleton loader / placeholders before JS mounts -->
-                <div class="product-card" style="opacity: 0.5;">
+                <div class="product-card skeleton-card" aria-hidden="true">
                     <div class="product-image-container"></div>
                     <div class="product-info">
-                        <div style="height: 20px; background: #eee; width: 60%; margin-bottom: 10px;"></div>
-                        <div style="height: 40px; background: #eee; width: 90%; margin-bottom: 20px;"></div>
-                        <div style="height: 35px; background: #eee; width: 100%;"></div>
+                        <div class="skeleton-line skeleton-title"></div>
+                        <div class="skeleton-line skeleton-copy"></div>
+                        <div class="skeleton-line skeleton-button"></div>
                     </div>
                 </div>
-                <div class="product-card" style="opacity: 0.5;">
+                <div class="product-card skeleton-card" aria-hidden="true">
                     <div class="product-image-container"></div>
                     <div class="product-info">
-                        <div style="height: 20px; background: #eee; width: 60%; margin-bottom: 10px;"></div>
-                        <div style="height: 40px; background: #eee; width: 90%; margin-bottom: 20px;"></div>
-                        <div style="height: 35px; background: #eee; width: 100%;"></div>
+                        <div class="skeleton-line skeleton-title"></div>
+                        <div class="skeleton-line skeleton-copy"></div>
+                        <div class="skeleton-line skeleton-button"></div>
                     </div>
                 </div>
-                <div class="product-card" style="opacity: 0.5;">
+                <div class="product-card skeleton-card" aria-hidden="true">
                     <div class="product-image-container"></div>
                     <div class="product-info">
-                        <div style="height: 20px; background: #eee; width: 60%; margin-bottom: 10px;"></div>
-                        <div style="height: 40px; background: #eee; width: 90%; margin-bottom: 20px;"></div>
-                        <div style="height: 35px; background: #eee; width: 100%;"></div>
+                        <div class="skeleton-line skeleton-title"></div>
+                        <div class="skeleton-line skeleton-copy"></div>
+                        <div class="skeleton-line skeleton-button"></div>
                     </div>
                 </div>
             </div>
@@ -143,15 +143,15 @@
 
     <!-- Shopping Cart Drawer -->
     <div class="cart-overlay" id="cartOverlay"></div>
-    <div class="cart-drawer" id="cartDrawer">
+    <div class="cart-drawer" id="cartDrawer" role="dialog" aria-modal="true" aria-labelledby="cartDrawerTitle" aria-hidden="true">
         <div class="cart-header">
-            <h3 class="cart-header-title">
+            <h3 class="cart-header-title" id="cartDrawerTitle">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
                 </svg>
                 <span>سلة المشتريات</span>
             </h3>
-            <button class="cart-close-btn" id="cartCloseBtn">
+            <button class="cart-close-btn" id="cartCloseBtn" type="button" aria-label="إغلاق السلة">
                 <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
         </div>
@@ -163,16 +163,16 @@
 
         <!-- Cart Footer Summary -->
         <div class="cart-footer">
-            <div class="cart-summary-line" style="display: none !important;">
+            <div class="cart-summary-line">
                 <span>المجموع الفرعي</span>
                 <span id="cartSubtotal">0<span> جنيه</span></span>
             </div>
-            <div class="cart-summary-line" style="display: none !important;">
+            <div class="cart-summary-line">
                 <span>التوصيل</span>
-                <span>يحدد لاحقاً</span>
+                <span>يحدد حسب المنطقة</span>
             </div>
-            <div class="cart-summary-line total" style="display: none !important;">
-                <span>الإجمالي الإجمالي</span>
+            <div class="cart-summary-line total">
+                <span>إجمالي المنتجات</span>
                 <span class="total-price" id="cartTotal">0<span> جنيه</span></span>
             </div>
             <button class="checkout-btn" id="checkoutBtn" disabled>
@@ -185,23 +185,26 @@
     </div>
 
     <!-- Floating Mobile Cart Bar -->
-    <div class="floating-mobile-cart" id="floatingCartBtn">
+    <button class="floating-mobile-cart" id="floatingCartBtn" type="button" aria-controls="cartDrawer" aria-expanded="false">
         <div class="floating-cart-left">
             <span class="floating-cart-count" id="floatingCartCount">0</span>
-            <span style="font-size: 11px; opacity: 0.9;">صنف</span>
+            <span class="floating-cart-unit">صنف</span>
         </div>
-        <div class="floating-cart-center" style="flex-grow: 1; text-align: center; margin-right: 12px;">
+        <div class="floating-cart-center">
             <span>عرض السلة وتأكيد الأوردر 📲</span>
         </div>
-    </div>
+        <div class="floating-cart-right">
+            <span id="floatingCartPrice">0</span><span>ج.م</span>
+        </div>
+    </button>
 
     <!-- Custom Topping Selector Modal -->
-    <div class="modal" id="toppingModal">
+    <div class="modal" id="toppingModal" role="dialog" aria-modal="true" aria-labelledby="customizerTitle" aria-hidden="true">
         <div class="modal-backdrop" id="toppingModalBackdrop"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <h4 class="modal-header-title" id="customizerTitle">اختر الإضافات والتوبينج</h4>
-                <button class="modal-close-btn" id="toppingModalCloseBtn">
+                <button class="modal-close-btn" id="toppingModalCloseBtn" type="button" aria-label="إغلاق اختيار الإضافات">
                     <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 </button>
             </div>
@@ -223,42 +226,42 @@
                 </div>
             </div>
             <div class="customizer-footer">
-                <button class="modal-action-btn" id="confirmToppingBtn">إضافة للسلة</button>
+                <button class="modal-action-btn" id="confirmToppingBtn" type="button">إضافة للسلة</button>
             </div>
         </div>
     </div>
 
     <!-- Checkout Details Modal -->
-    <div class="modal" id="checkoutModal">
+    <div class="modal" id="checkoutModal" role="dialog" aria-modal="true" aria-labelledby="checkoutModalTitle" aria-hidden="true">
         <div class="modal-backdrop" id="checkoutModalBackdrop"></div>
-        <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-content checkout-modal-content">
             <div class="modal-header">
-                <h4 class="modal-header-title">تفاصيل عنوان التوصيل والأوردر</h4>
-                <button class="modal-close-btn" id="checkoutModalCloseBtn">
+                <h4 class="modal-header-title" id="checkoutModalTitle">تفاصيل عنوان التوصيل والأوردر</h4>
+                <button class="modal-close-btn" id="checkoutModalCloseBtn" type="button" aria-label="إغلاق تفاصيل الطلب">
                     <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 </button>
             </div>
             <div class="modal-body">
                 <!-- Order Summary Section inside Checkout Modal -->
-                <div class="checkout-order-summary" style="background: #FFF5F7; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 20px;">
-                    <h5 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text-color); display: flex; align-items: center; gap: 8px;">ملخص الطلب 🛍️</h5>
-                    <div id="checkoutSummaryItems" style="max-height: 150px; overflow-y: auto; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                <div class="checkout-order-summary">
+                    <h5 class="checkout-summary-title">ملخص الطلب 🛍️</h5>
+                    <div class="checkout-summary-items" id="checkoutSummaryItems">
                         <!-- Items will be rendered here dynamically -->
                     </div>
-                    <div style="border-top: 1px dashed var(--border-color); padding-top: 12px; display: flex; justify-content: space-between; font-weight: 800; font-size: 16px; color: var(--text-color);">
+                    <div class="checkout-summary-total">
                         <span>المجموع الإجمالي:</span>
-                        <span id="checkoutTotalVal" style="color: var(--primary); font-family: var(--font-en);">0 ج.م</span>
+                        <span id="checkoutTotalVal">0 ج.م</span>
                     </div>
                 </div>
                 <form id="checkoutForm">
                     <div class="checkout-form-group">
                         <label class="checkout-label" for="clientName">الاسم بالكامل *</label>
-                        <input type="text" id="clientName" class="checkout-input" placeholder="اكتب اسمك لتسهيل استلام الطلب" required>
+                        <input type="text" id="clientName" class="checkout-input" placeholder="اكتب اسمك لتسهيل استلام الطلب" autocomplete="name" required>
                     </div>
 
                     <div class="checkout-form-group">
                         <label class="checkout-label" for="clientPhone">رقم الموبايل (واتساب) *</label>
-                        <input type="tel" id="clientPhone" class="checkout-input" placeholder="رقم الهاتف للتواصل معك" style="direction: ltr;" required>
+                        <input type="tel" id="clientPhone" class="checkout-input phone-input" placeholder="مثال: 01061219807" inputmode="tel" autocomplete="tel" pattern="^(\+?20|0)?1[0125][0-9]{8}$" required>
                     </div>
 
                     <div class="checkout-form-group">
@@ -283,7 +286,7 @@
 
                     <div class="checkout-form-group" id="deliveryAddressGroup">
                         <label class="checkout-label" for="clientAddress">العنوان بالتفصيل *</label>
-                        <input type="text" id="clientAddress" class="checkout-input" placeholder="اسم المنطقة، الشارع، رقم العمارة والدور">
+                        <input type="text" id="clientAddress" class="checkout-input" placeholder="اسم المنطقة، الشارع، رقم العمارة والدور" autocomplete="street-address" required>
                     </div>
 
                     <div class="checkout-form-group">
@@ -293,7 +296,7 @@
                 </form>
             </div>
             <div class="customizer-footer">
-                <button type="submit" form="checkoutForm" class="modal-action-btn" style="background: linear-gradient(135deg, #07b055, #00d26a); font-size: 16px;">
+                <button type="submit" form="checkoutForm" class="modal-action-btn checkout-submit-btn">
                     🚀 إرسال الطلب وتأكيده على الواتساب
                 </button>
             </div>
@@ -308,13 +311,13 @@
         <div class="container">
             <div class="footer-grid">
                 <div>
-                    <h3 class="footer-col-title" style="font-family: var(--font-en); font-weight: 800; font-size: 24px; color: var(--primary);">EMY BAKES</h3>
+                    <h3 class="footer-col-title footer-brand-title">EMY BAKES</h3>
                     <p class="footer-text">أفضل المخبوزات والحلويات المصنوعة يدوياً بكل حب لتقدم لك تجربة طعم لا تُنسى. دوناتس غنية، كوكيز مقرمشة وشيز كيك فخم.</p>
                     <div class="footer-socials">
-                        <a href="https://instagram.com/emy_bakes" target="_blank" class="social-link" aria-label="Instagram">
+                        <a href="https://instagram.com/emy_bakes" target="_blank" rel="noopener" class="social-link" aria-label="Instagram">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
                         </a>
-                        <a href="https://facebook.com" target="_blank" class="social-link" aria-label="Facebook">
+                        <a href="https://facebook.com" target="_blank" rel="noopener" class="social-link" aria-label="Facebook">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 8H7v3h2v9h3v-9h3.625L16 8h-4V7c0-.5.5-1 1-1h3V3h-3C9.5 3 9 4.5 9 6v2z"/></svg>
                         </a>
                     </div>

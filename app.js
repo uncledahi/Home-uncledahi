@@ -714,6 +714,7 @@ const categoriesContainer = document.getElementById("categoriesContainer");
 const productsGrid = document.getElementById("productsGrid");
 const currentCategoryHeading = document.getElementById("currentCategoryHeading");
 const searchInput = document.getElementById("searchInput");
+const headerSearchInput = document.getElementById("headerSearchInput");
 
 // Cart Elements
 const cartToggleBtn = document.getElementById("cartToggleBtn");
@@ -747,6 +748,88 @@ const checkoutForm = document.getElementById("checkoutForm");
 const orderTypeRadios = document.getElementsByName("orderType");
 const deliveryAddressGroup = document.getElementById("deliveryAddressGroup");
 const clientAddress = document.getElementById("clientAddress");
+const clientPhone = document.getElementById("clientPhone");
+
+const priceFormatter = new Intl.NumberFormat("ar-EG");
+const searchInputs = [searchInput, headerSearchInput].filter(Boolean);
+
+function formatPrice(value) {
+    return priceFormatter.format(Number(value) || 0);
+}
+
+function escapeHTML(value = "") {
+    const entities = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    };
+
+    return String(value).replace(/[&<>"']/g, char => entities[char]);
+}
+
+function normalizePhone(value = "") {
+    return String(value).replace(/[^\d+]/g, "");
+}
+
+function isValidEgyptianMobile(value = "") {
+    return /^(?:\+?20|0)?1[0125][0-9]{8}$/.test(normalizePhone(value));
+}
+
+function getCurrentCategoryTitle() {
+    const categoryObj = CATEGORIES.find(category => category.id === currentCategory);
+    if (!categoryObj || categoryObj.id === "all") return "كل الأصناف";
+    return categoryObj.nameAr;
+}
+
+function updateCategoryHeading(count) {
+    if (!currentCategoryHeading) return;
+    const trimmedQuery = searchQuery.trim();
+    const baseTitle = trimmedQuery ? `نتائج البحث عن "${trimmedQuery}"` : getCurrentCategoryTitle();
+    currentCategoryHeading.textContent = `${baseTitle} (${formatPrice(count)})`;
+}
+
+function updatePageLock() {
+    const hasActiveOverlay = cartDrawer.classList.contains("active") ||
+        toppingModal.classList.contains("active") ||
+        checkoutModal.classList.contains("active");
+
+    document.body.classList.toggle("modal-open", hasActiveOverlay);
+}
+
+function openModal(modal) {
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+    updatePageLock();
+}
+
+function closeModal(modal) {
+    modal.classList.remove("active");
+    modal.setAttribute("aria-hidden", "true");
+    updatePageLock();
+}
+
+function createImageFallback() {
+    const fallback = document.createElement("div");
+    fallback.className = "image-fallback";
+    fallback.innerHTML = `
+        <svg class="product-fallback-svg" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="34" fill="none" stroke="currentColor" stroke-width="9"/>
+            <circle cx="50" cy="50" r="11" fill="currentColor"/>
+            <path d="M24 46c5-16 17-24 31-23 12 1 21 7 25 19-8-2-12 4-18 5-7 1-12-4-18-1-7 3-13 5-20 0z" fill="currentColor" opacity=".28"/>
+        </svg>
+    `;
+    return fallback;
+}
+
+function attachImageFallbacks(scope) {
+    scope.querySelectorAll("img").forEach(img => {
+        img.addEventListener("error", () => {
+            img.replaceWith(createImageFallback());
+        }, { once: true });
+    });
+}
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -803,10 +886,12 @@ function generateSugarSprinkles() {
 // --- Render Category Tabs ---
 function renderCategories() {
     categoriesContainer.innerHTML = CATEGORIES.map(category => `
-        <button class="category-tab ${category.id === currentCategory ? 'active' : ''}" 
+        <button class="category-tab ${category.id === currentCategory ? 'active' : ''}"
+                type="button"
+                aria-pressed="${category.id === currentCategory}"
                 data-category-id="${category.id}">
             <span class="category-emoji">${category.emoji}</span>
-            <span>${category.nameAr}</span>
+            <span>${escapeHTML(category.nameAr)}</span>
         </button>
     `).join('');
 
@@ -820,13 +905,12 @@ function renderCategories() {
             currentCategory = button.getAttribute("data-category-id");
             
             // Update active styling
-            document.querySelectorAll(".category-tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".category-tab").forEach(t => {
+                t.classList.remove("active");
+                t.setAttribute("aria-pressed", "false");
+            });
             button.classList.add("active");
-
-            // Update category title
-            const categoryObj = CATEGORIES.find(c => c.id === currentCategory);
-            currentCategoryHeading.textContent = categoryObj.nameAr === "الكل" ? "كل الأصناف" : categoryObj.nameAr;
-            replaceEmojisInDOM(currentCategoryHeading);
+            button.setAttribute("aria-pressed", "true");
 
             // Re-render
             renderProducts();
@@ -838,56 +922,71 @@ function renderCategories() {
 function renderProducts() {
     // Filter by Category and Search Query
     let filteredList = MENU_DATA;
+    const normalizedQuery = searchQuery.trim().toLowerCase();
 
     if (currentCategory !== "all") {
         filteredList = filteredList.filter(item => item.category === currentCategory);
     }
 
-    if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
+    if (normalizedQuery !== "") {
         filteredList = filteredList.filter(item => 
-            item.nameAr.toLowerCase().includes(query) || 
-            item.nameEn.toLowerCase().includes(query) ||
-            item.desc.toLowerCase().includes(query)
+            item.nameAr.toLowerCase().includes(normalizedQuery) ||
+            item.nameEn.toLowerCase().includes(normalizedQuery) ||
+            item.desc.toLowerCase().includes(normalizedQuery)
         );
     }
 
+    updateCategoryHeading(filteredList.length);
+
     if (filteredList.length === 0) {
         productsGrid.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-muted);">
-                <div style="font-size: 54px; margin-bottom: 16px;">🔍</div>
-                <h3 style="font-weight: 700; margin-bottom: 8px;">لم نجد أي صنف يطابق بحثك!</h3>
-                <p>تأكد من كتابة الكلمة بشكل صحيح، أو ابحث في تصنيف آخر.</p>
+            <div class="no-results-state">
+                <div class="no-results-icon">🔍</div>
+                <h3 class="no-results-title">لم نجد أي صنف يطابق بحثك!</h3>
+                <p class="no-results-copy">جرّب كلمة أبسط، أو انتقل لتصنيف آخر من الشريط بالأعلى.</p>
+                ${searchQuery.trim() ? `<button type="button" class="no-results-clear-btn" id="clearSearchBtn">مسح البحث</button>` : ''}
             </div>
         `;
         replaceEmojisInDOM(productsGrid);
+        const clearSearchBtn = document.getElementById("clearSearchBtn");
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener("click", () => {
+                searchQuery = "";
+                searchInputs.forEach(input => input.value = "");
+                renderProducts();
+            });
+        }
         return;
     }
 
     productsGrid.innerHTML = filteredList.map(item => {
         const cartItem = cart.find(ci => ci.id === item.id && !ci.hasCustomOptions);
         const qtyInCart = cartItem ? cartItem.qty : 0;
+        const safeName = escapeHTML(item.nameAr);
+        const safeDesc = escapeHTML(item.desc);
+        const safeImage = escapeHTML(item.image);
+        const safeBadge = item.badge ? escapeHTML(item.badge) : "";
 
         return `
             <div class="product-card" data-product-id="${item.id}">
                 <div class="product-image-container">
-                    <img src="${item.image}" alt="${item.nameAr}" class="product-img" loading="lazy">
-                    ${item.badge ? `<span class="product-badge">${item.badge}</span>` : ''}
-                    <div class="product-price">${item.price}<span>ج.م</span></div>
+                    <img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy">
+                    ${safeBadge ? `<span class="product-badge">${safeBadge}</span>` : ''}
+                    <div class="product-price">${formatPrice(item.price)}<span>ج.م</span></div>
                 </div>
                 <div class="product-info">
-                    <h3 class="product-title">${item.nameAr}</h3>
-                    <p class="product-desc">${item.desc}</p>
+                    <h3 class="product-title">${safeName}</h3>
+                    <p class="product-desc">${safeDesc}</p>
                     
                     <div class="product-actions">
                         ${qtyInCart > 0 ? `
                             <div class="card-quantity-controls">
-                                <button class="card-qty-btn decrease-qty-btn" data-product-id="${item.id}">-</button>
-                                <span class="card-qty-value">${qtyInCart}</span>
-                                <button class="card-qty-btn increase-qty-btn" data-product-id="${item.id}">+</button>
+                                <button class="card-qty-btn decrease-qty-btn" type="button" data-product-id="${item.id}" aria-label="تقليل ${safeName}">-</button>
+                                <span class="card-qty-value">${formatPrice(qtyInCart)}</span>
+                                <button class="card-qty-btn increase-qty-btn" type="button" data-product-id="${item.id}" aria-label="زيادة ${safeName}">+</button>
                             </div>
                         ` : `
-                            <button class="add-to-cart-btn direct-add-btn" data-product-id="${item.id}">
+                            <button class="add-to-cart-btn direct-add-btn" type="button" data-product-id="${item.id}" aria-label="إضافة ${safeName} للسلة">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                                 </svg>
@@ -902,6 +1001,7 @@ function renderProducts() {
 
     // Replace unicode emojis in products grid
     replaceEmojisInDOM(productsGrid);
+    attachImageFallbacks(productsGrid);
 
     // Attach actions
     attachCardActionListeners();
@@ -954,14 +1054,14 @@ function openCustomizerModal(product) {
     customizerImg.src = product.image;
     customizerImg.alt = product.nameAr;
     customizerName.textContent = product.nameAr;
-    customizerPrice.innerHTML = `${product.price}<span>ج.م</span>`;
+    customizerPrice.innerHTML = `${formatPrice(product.price)}<span>ج.م</span>`;
     
     // Render Toppings
     toppingsContainer.innerHTML = product.toppings.map((topping, index) => `
         <div class="topping-option">
-            <input type="checkbox" id="topping-${index}" class="topping-checkbox" value="${topping}">
+            <input type="checkbox" id="topping-${index}" class="topping-checkbox" value="${escapeHTML(topping)}">
             <label for="topping-${index}" class="topping-label">
-                <span>${topping}</span>
+                <span>${escapeHTML(topping)}</span>
                 <span class="topping-indicator"></span>
             </label>
         </div>
@@ -970,26 +1070,27 @@ function openCustomizerModal(product) {
     // Replace emojis in topping modal
     replaceEmojisInDOM(toppingModal);
     
-    toppingModal.classList.add("active");
+    openModal(toppingModal);
 }
 
 function closeCustomizerModal() {
-    toppingModal.classList.remove("active");
+    closeModal(toppingModal);
     itemBeingCustomized = null;
 }
 
 // --- Add to Cart Logic ---
 function addToCart(product, selectedToppings = []) {
-    const isCustom = selectedToppings.length > 0;
+    const normalizedToppings = [...selectedToppings].sort();
+    const isCustom = normalizedToppings.length > 0;
     
     // For custom items, uniqueId combines product.id and selected toppings
-    const toppingString = selectedToppings.sort().join(", ");
+    const toppingString = normalizedToppings.join(", ");
     const uniqueId = isCustom ? `${product.id}-[${toppingString}]` : product.id;
 
     const existingItem = cart.find(item => item.uniqueId === uniqueId);
 
     if (existingItem) {
-        existingItem.qty += 1;
+        existingItem.qty = Math.min(existingItem.qty + 1, 99);
     } else {
         cart.push({
             uniqueId: uniqueId,
@@ -998,7 +1099,7 @@ function addToCart(product, selectedToppings = []) {
             price: product.price,
             image: product.image,
             hasCustomOptions: isCustom,
-            toppings: selectedToppings,
+            toppings: normalizedToppings,
             qty: 1
         });
     }
@@ -1022,7 +1123,7 @@ function updateCartItemQuantity(uniqueId, newQty) {
         cart.splice(itemIndex, 1);
         showToast(`تم حذف "${removedItemName}" من السلة`);
     } else {
-        cart[itemIndex].qty = newQty;
+        cart[itemIndex].qty = Math.min(newQty, 99);
     }
 
     saveCartToStorage();
@@ -1034,8 +1135,8 @@ function updateCartItemQuantity(uniqueId, newQty) {
 function updateCartUI() {
     // 1. Update Cart Badge Counters
     const totalCount = cart.reduce((total, item) => total + item.qty, 0);
-    cartCount.textContent = totalCount;
-    floatingCartCount.textContent = totalCount;
+    cartCount.textContent = formatPrice(totalCount);
+    floatingCartCount.textContent = formatPrice(totalCount);
     
     // 2. Render Cart Items List
     if (cart.length === 0) {
@@ -1043,37 +1144,44 @@ function updateCartUI() {
             <div class="empty-cart-state">
                 <span class="empty-cart-icon">🛒</span>
                 <p class="empty-cart-text">سلة المشتريات فارغة تماماً!</p>
-                <p style="font-size: 13px;">تصفح المنيو وأضف أصنافك المفضلة لطلبها بسرعة.</p>
+                <p class="empty-cart-subtext">تصفح المنيو وأضف أصنافك المفضلة لطلبها بسرعة.</p>
             </div>
         `;
         checkoutBtn.disabled = true;
     } else {
         checkoutBtn.disabled = false;
-        cartItemsList.innerHTML = cart.map(item => `
+        cartItemsList.innerHTML = cart.map(item => {
+            const safeUniqueId = escapeHTML(item.uniqueId);
+            const safeName = escapeHTML(item.nameAr);
+            const safeImage = escapeHTML(item.image);
+            const safeToppings = item.toppings.map(topping => escapeHTML(topping)).join('، ');
+
+            return `
             <div class="cart-item">
-                <button class="cart-item-remove-btn" data-unique-id="${item.uniqueId}" aria-label="حذف">
+                <button class="cart-item-remove-btn" type="button" data-unique-id="${safeUniqueId}" aria-label="حذف ${safeName}">
                     <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                 </button>
                 <div class="cart-item-img-container">
-                    <img src="${item.image}" alt="${item.nameAr}" class="cart-item-img">
+                    <img src="${safeImage}" alt="${safeName}" class="cart-item-img" loading="lazy">
                 </div>
                 <div class="cart-item-details">
                     <div>
-                        <h4 class="cart-item-title">${item.nameAr}</h4>
-                        ${item.hasCustomOptions ? `<div class="cart-item-options">الإضافات: ${item.toppings.join('، ')}</div>` : ''}
+                        <h4 class="cart-item-title">${safeName}</h4>
+                        ${item.hasCustomOptions ? `<div class="cart-item-options">الإضافات: ${safeToppings}</div>` : ''}
                     </div>
                     <div class="cart-item-bottom">
-                        <div class="cart-item-price">${item.price * item.qty}<span>ج.م</span></div>
+                        <div class="cart-item-price">${formatPrice(item.price * item.qty)}<span>ج.م</span></div>
                         
                         <div class="cart-item-qty-controls">
-                            <button class="cart-qty-btn-sm dec-cart-item" data-unique-id="${item.uniqueId}">-</button>
-                            <span class="cart-qty-val-sm">${item.qty}</span>
-                            <button class="cart-qty-btn-sm inc-cart-item" data-unique-id="${item.uniqueId}">+</button>
+                            <button class="cart-qty-btn-sm dec-cart-item" type="button" data-unique-id="${safeUniqueId}" aria-label="تقليل ${safeName}">-</button>
+                            <span class="cart-qty-val-sm">${formatPrice(item.qty)}</span>
+                            <button class="cart-qty-btn-sm inc-cart-item" type="button" data-unique-id="${safeUniqueId}" aria-label="زيادة ${safeName}">+</button>
                         </div>
                     </div>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         // Attach cart drawer items listeners
         attachCartItemsListeners();
@@ -1081,21 +1189,23 @@ function updateCartUI() {
 
     // 3. Update Totals
     const subtotal = cart.reduce((total, item) => total + (item.price * item.qty), 0);
-    cartSubtotal.innerHTML = `${subtotal}<span> ج.م</span>`;
-    cartTotal.innerHTML = `${subtotal}<span> ج.م</span>`;
+    cartSubtotal.innerHTML = `${formatPrice(subtotal)}<span> ج.م</span>`;
+    cartTotal.innerHTML = `${formatPrice(subtotal)}<span> ج.م</span>`;
     
     // Update floating cart price if element exists
     if (floatingCartPrice) {
-        floatingCartPrice.textContent = subtotal;
+        floatingCartPrice.textContent = formatPrice(subtotal);
     }
     
     // Toggle active class on mobile floating cart bar based on count
     if (floatingCartBtn) {
         floatingCartBtn.classList.toggle("active", totalCount > 0);
+        floatingCartBtn.setAttribute("aria-expanded", cartDrawer.classList.contains("active") ? "true" : "false");
     }
 
     // Replace unicode emojis in cart list
     replaceEmojisInDOM(cartItemsList);
+    attachImageFallbacks(cartItemsList);
 }
 
 // --- Attach Action Listeners to Cart Drawer Items ---
@@ -1143,14 +1253,24 @@ function setupEventListeners() {
     });
 
     // Cart Drawer Toggle
+    const setCartExpanded = (isExpanded) => {
+        cartToggleBtn.setAttribute("aria-expanded", String(isExpanded));
+        floatingCartBtn.setAttribute("aria-expanded", String(isExpanded));
+        cartDrawer.setAttribute("aria-hidden", String(!isExpanded));
+    };
+
     const openCart = () => {
         cartDrawer.classList.add("active");
         cartOverlay.classList.add("active");
+        setCartExpanded(true);
+        updatePageLock();
     };
 
     const closeCart = () => {
         cartDrawer.classList.remove("active");
         cartOverlay.classList.remove("active");
+        setCartExpanded(false);
+        updatePageLock();
     };
 
     cartToggleBtn.addEventListener("click", openCart);
@@ -1161,10 +1281,13 @@ function setupEventListeners() {
     // Search bar functionality
     const handleSearch = (e) => {
         searchQuery = e.target.value;
+        searchInputs.forEach(input => {
+            if (input !== e.target) input.value = searchQuery;
+        });
         renderProducts();
     };
 
-    searchInput.addEventListener("input", handleSearch);
+    searchInputs.forEach(input => input.addEventListener("input", handleSearch));
 
     // Customizer Modal Actions
     toppingModalCloseBtn.addEventListener("click", closeCustomizerModal);
@@ -1199,28 +1322,43 @@ function setupEventListeners() {
         renderCheckoutSummary();
         
         // Show Checkout Dialog
-        checkoutModal.classList.add("active");
+        openModal(checkoutModal);
     });
 
     checkoutModalCloseBtn.addEventListener("click", () => {
-        checkoutModal.classList.remove("active");
+        closeModal(checkoutModal);
     });
 
     checkoutModalBackdrop.addEventListener("click", () => {
-        checkoutModal.classList.remove("active");
+        closeModal(checkoutModal);
     });
 
     // Toggle Address Input based on Delivery Type
+    const syncDeliveryAddress = () => {
+        const selectedType = document.querySelector('input[name="orderType"]:checked').value;
+        const needsAddress = selectedType === "delivery";
+        deliveryAddressGroup.hidden = !needsAddress;
+        clientAddress.required = needsAddress;
+        if (!needsAddress) {
+            clientAddress.setCustomValidity("");
+        }
+    };
+
     orderTypeRadios.forEach(radio => {
-        radio.addEventListener("change", (e) => {
-            if (e.target.value === "pickup") {
-                deliveryAddressGroup.style.display = "none";
-                clientAddress.required = false;
-            } else {
-                deliveryAddressGroup.style.display = "block";
-                clientAddress.required = true;
-            }
-        });
+        radio.addEventListener("change", syncDeliveryAddress);
+    });
+    syncDeliveryAddress();
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+
+        if (checkoutModal.classList.contains("active")) {
+            closeModal(checkoutModal);
+        } else if (toppingModal.classList.contains("active")) {
+            closeCustomizerModal();
+        } else if (cartDrawer.classList.contains("active")) {
+            closeCart();
+        }
     });
 
     // Submit Checkout form -> Generate WhatsApp Order
@@ -1229,10 +1367,31 @@ function setupEventListeners() {
 
         // 1. Gather Information
         const name = document.getElementById("clientName").value.trim();
-        const phone = document.getElementById("clientPhone").value.trim();
+        const phone = clientPhone.value.trim();
         const type = document.querySelector('input[name="orderType"]:checked').value;
         const address = type === "delivery" ? clientAddress.value.trim() : "استلام من الفرع";
         const notes = document.getElementById("orderNotes").value.trim();
+
+        if (cart.length === 0) {
+            showToast("السلة فارغة، أضف صنفاً واحداً على الأقل قبل تأكيد الطلب.", "error");
+            return;
+        }
+
+        if (!isValidEgyptianMobile(phone)) {
+            clientPhone.setCustomValidity("اكتب رقم موبايل مصري صحيح مثل 01061219807");
+            clientPhone.reportValidity();
+            showToast("رقم الموبايل غير صحيح. تأكد أنه رقم واتساب مصري.", "error");
+            return;
+        }
+        clientPhone.setCustomValidity("");
+
+        if (type === "delivery" && address.length < 8) {
+            clientAddress.setCustomValidity("اكتب عنواناً أوضح للتوصيل.");
+            clientAddress.reportValidity();
+            showToast("من فضلك اكتب العنوان بالتفصيل لتسهيل التوصيل.", "error");
+            return;
+        }
+        clientAddress.setCustomValidity("");
         
         // 2. Build WhatsApp Message
         const orderText = generateWhatsAppMessage(name, phone, type, address, notes);
@@ -1242,7 +1401,12 @@ function setupEventListeners() {
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_PHONE}&text=${encodedText}`;
         
         // 4. Open WhatsApp
-        window.open(whatsappUrl, "_blank");
+        const whatsappWindow = window.open(whatsappUrl, "_blank");
+        if (!whatsappWindow) {
+            showToast("المتصفح منع فتح واتساب. اسمح بالنوافذ المنبثقة وجرب مرة أخرى.", "error");
+            return;
+        }
+        whatsappWindow.opener = null;
 
         // 5. Success Flow
         showToast("جاري توجيهك للواتساب لتأكيد طلبك... \uD83D\uDE9A", "success");
@@ -1254,7 +1418,9 @@ function setupEventListeners() {
         renderProducts();
         
         // Hide Modal
-        checkoutModal.classList.remove("active");
+        checkoutForm.reset();
+        syncDeliveryAddress();
+        closeModal(checkoutModal);
     });
 }
 
@@ -1266,20 +1432,25 @@ function renderCheckoutSummary() {
     if (!summaryItemsContainer || !totalValContainer) return;
     
     if (cart.length === 0) {
-        summaryItemsContainer.innerHTML = '<div style="font-size: 13px; color: var(--text-muted); text-align: center;">سلة المشتريات فارغة</div>';
+        summaryItemsContainer.innerHTML = '<div class="checkout-empty-state">سلة المشتريات فارغة</div>';
         totalValContainer.textContent = "0 ج.م";
         return;
     }
     
-    summaryItemsContainer.innerHTML = cart.map(item => `
-        <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-color); border-bottom: 1px dashed rgba(61, 35, 20, 0.05); padding-bottom: 6px;">
-            <span>• ${item.qty}x ${item.nameAr} ${item.hasCustomOptions ? `<span style="font-size: 11px; color: var(--secondary-dark);">(إضافات: ${item.toppings.join('، ')})</span>` : ''}</span>
-            <span style="font-family: var(--font-en); font-weight: 700;">${item.price * item.qty} ج.م</span>
-        </div>
-    `).join('');
+    summaryItemsContainer.innerHTML = cart.map(item => {
+        const safeName = escapeHTML(item.nameAr);
+        const safeToppings = item.toppings.map(topping => escapeHTML(topping)).join('، ');
+
+        return `
+            <div class="checkout-summary-row">
+                <span>• ${formatPrice(item.qty)}x ${safeName} ${item.hasCustomOptions ? `<span class="checkout-summary-option">(إضافات: ${safeToppings})</span>` : ''}</span>
+                <span class="checkout-summary-price">${formatPrice(item.price * item.qty)} ج.م</span>
+            </div>
+        `;
+    }).join('');
     
     const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    totalValContainer.textContent = `${total} ج.م`;
+    totalValContainer.textContent = `${formatPrice(total)} ج.م`;
     
     replaceEmojisInDOM(summaryItemsContainer);
 }
@@ -1289,7 +1460,7 @@ function generateWhatsAppMessage(name, phone, type, address, notes) {
     const divider = "------------------------------------------";
     let message = `*\uD83D\uDCE3 طلب جديد من EMY BAKES \uD83C\uDF69\u2728*\n${divider}\n`;
     message += `\uD83D\uDC64 *الاسم:* ${name}\n`;
-    message += `\uD83D\uDCDE *رقم الموبايل:* ${phone}\n`;
+    message += `\uD83D\uDCDE *رقم الموبايل:* ${normalizePhone(phone)}\n`;
     message += `\uD83D\uDE9A *نوع الطلب:* ${type === "delivery" ? "توصيل دليفري" : "استلام من الفرع"}\n`;
     
     if (type === "delivery") {
@@ -1299,11 +1470,11 @@ function generateWhatsAppMessage(name, phone, type, address, notes) {
     message += `${divider}\n*\uD83D\uDED2 الأصناف المطلوبة:*\n`;
 
     cart.forEach(item => {
-        message += `• ${item.qty}x ${item.nameAr}`;
+        message += `• ${formatPrice(item.qty)}x ${item.nameAr}`;
         if (item.hasCustomOptions) {
             message += ` (إضافات: ${item.toppings.join('، ')})`;
         }
-        message += ` ➔ _${item.price * item.qty} ج.م_\n`;
+        message += ` ➔ _${formatPrice(item.price * item.qty)} ج.م_\n`;
     });
 
     message += `${divider}\n`;
@@ -1313,13 +1484,50 @@ function generateWhatsAppMessage(name, phone, type, address, notes) {
     }
 
     const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    message += `\uD83D\uDCB0 *المجموع الإجمالي:* *${total} ج.م*\n\n`;
+    message += `\uD83D\uDCB0 *المجموع الإجمالي:* *${formatPrice(total)} ج.م*\n\n`;
     message += `شكراً لاختياركم *Emy Bakes*! يرجى إرسال هذه الرسالة لتأكيد الطلب وسيتم مراجعته وتجهيزه فوراً. \uD83D\uDC96`;
 
     return message;
 }
 
 // --- LocalStorage Cart helpers ---
+function sanitizeCartItems(items) {
+    if (!Array.isArray(items)) return [];
+
+    const mergedItems = new Map();
+
+    items.forEach(item => {
+        const product = MENU_DATA.find(menuItem => menuItem.id === item.id);
+        if (!product) return;
+
+        const allowedToppings = Array.isArray(product.toppings) ? product.toppings : [];
+        const toppings = Array.isArray(item.toppings)
+            ? item.toppings.filter(topping => allowedToppings.includes(topping)).sort()
+            : [];
+        const hasCustomOptions = toppings.length > 0;
+        const uniqueId = hasCustomOptions ? `${product.id}-[${toppings.join(", ")}]` : product.id;
+        const qty = Math.max(1, Math.min(Number.parseInt(item.qty, 10) || 1, 99));
+
+        if (mergedItems.has(uniqueId)) {
+            const existingItem = mergedItems.get(uniqueId);
+            existingItem.qty = Math.min(existingItem.qty + qty, 99);
+        } else {
+            mergedItems.set(uniqueId, {
+                uniqueId,
+                id: product.id,
+                nameAr: product.nameAr,
+                price: product.price,
+                image: product.image,
+                hasCustomOptions,
+                toppings,
+                qty
+            });
+        }
+    });
+
+    return Array.from(mergedItems.values());
+}
+
 function saveCartToStorage() {
     localStorage.setItem("emy_bakes_cart", JSON.stringify(cart));
 }
@@ -1328,30 +1536,63 @@ function loadCartFromStorage() {
     const saved = localStorage.getItem("emy_bakes_cart");
     if (saved) {
         try {
-            cart = JSON.parse(saved);
+            cart = sanitizeCartItems(JSON.parse(saved));
+            saveCartToStorage();
             updateCartUI();
             renderProducts();
         } catch (e) {
             console.error("Failed to parse cart from storage", e);
             cart = [];
+            saveCartToStorage();
         }
     }
 }
 
 // --- Toast Notifications Helper ---
+const MAX_VISIBLE_TOASTS = 1;
+const TOAST_DURATION = 2600;
+
 function showToast(message, type = "info") {
     const container = document.getElementById("toastContainer");
+    if (!container) return;
+
+    const existingToast = Array.from(container.children).find(toast =>
+        toast.dataset.message === message &&
+        toast.dataset.type === type &&
+        !toast.classList.contains("toast-exiting")
+    );
+
+    if (existingToast) {
+        const repeat = Number(existingToast.dataset.repeat || 1) + 1;
+        existingToast.dataset.repeat = repeat;
+        existingToast.querySelector(".toast-repeat").textContent = `×${repeat}`;
+        existingToast.classList.remove("toast-bump");
+        void existingToast.offsetWidth;
+        existingToast.classList.add("toast-bump");
+        return;
+    }
+
+    while (container.children.length >= MAX_VISIBLE_TOASTS) {
+        dismissToast(container.firstElementChild, 0);
+    }
+
     const toast = document.createElement("div");
     
     toast.className = `toast ${type}`;
+    toast.dataset.message = message;
+    toast.dataset.type = type;
+    toast.dataset.repeat = "1";
     
-    const icon = type === "success" 
-        ? `<span class="toast-icon success">✓</span>` 
-        : `<span class="toast-icon">ℹ</span>`;
+    const icon = type === "success"
+        ? `<span class="toast-icon success">✓</span>`
+        : type === "error"
+            ? `<span class="toast-icon error">!</span>`
+            : `<span class="toast-icon">ℹ</span>`;
         
     toast.innerHTML = `
         ${icon}
-        <div>${message}</div>
+        <div class="toast-message">${escapeHTML(message)}</div>
+        <span class="toast-repeat" aria-hidden="true"></span>
     `;
 
     container.appendChild(toast);
@@ -1364,13 +1605,24 @@ function showToast(message, type = "info") {
         toast.classList.add("active");
     }, 50);
 
-    // Auto-destruct after 3.5 seconds
+    // Auto-destruct after a short moment so rapid actions never fill the screen.
+    setTimeout(() => dismissToast(toast), TOAST_DURATION);
+}
+
+function dismissToast(toast, delay = 260) {
+    if (!toast) return;
+
+    if (delay === 0) {
+        toast.remove();
+        return;
+    }
+
+    toast.classList.add("toast-exiting");
+    toast.classList.remove("active");
+
     setTimeout(() => {
-        toast.classList.remove("active");
-        setTimeout(() => {
-            toast.remove();
-        }, 400);
-    }, 3500);
+        toast.remove();
+    }, delay);
 }
 
 // --- Apple Emoji Replacement Helper ---
