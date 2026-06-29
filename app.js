@@ -1075,7 +1075,7 @@ window.addEventListener("scroll", () => {
 
 // --- Render Products Catalog Grid ---
 // --- Render Products Catalog Grid ---
-function renderProducts() {
+function renderProducts(isCartUpdate = false) {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     // If searching, we show a flat list of matching products
@@ -1109,7 +1109,7 @@ function renderProducts() {
             return;
         }
 
-        productsGrid.innerHTML = filteredList.map((item, index) => renderProductCard(item, index)).join('');
+        productsGrid.innerHTML = filteredList.map((item, index) => renderProductCard(item, index, isCartUpdate)).join('');
     } else {
         // Normal grouped view: group items by categories
         let htmlContent = "";
@@ -1134,7 +1134,7 @@ function renderProducts() {
 
             // Add product cards of this category with sequential global delay index
             htmlContent += catProducts.map(item => {
-                const cardHtml = renderProductCard(item, globalIndex);
+                const cardHtml = renderProductCard(item, globalIndex, isCartUpdate);
                 globalIndex++;
                 return cardHtml;
             }).join('');
@@ -1152,17 +1152,19 @@ function renderProducts() {
     attachCardActionListeners();
 }
 
-function renderProductCard(item, index = 0) {
+function renderProductCard(item, index = 0, isCartUpdate = false) {
     const cartItem = cart.find(ci => ci.id === item.id && !ci.hasCustomOptions);
     const qtyInCart = cartItem ? cartItem.qty : 0;
     const safeName = escapeHTML(item.nameAr);
     const safeDesc = escapeHTML(item.desc);
     const safeImage = escapeHTML(item.image);
     const safeBadge = item.badge ? escapeHTML(item.badge) : "";
-    const delay = index * 40; // 40ms stagger offset
+    
+    const entranceClass = isCartUpdate ? "" : " animate-entrance";
+    const delayStyle = isCartUpdate ? "" : ` style="animation-delay: ${index * 40}ms;"`;
 
     return `
-        <div class="product-card" data-product-id="${item.id}" style="animation-delay: ${delay}ms;">
+        <div class="product-card${entranceClass}" data-product-id="${item.id}"${delayStyle}>
             <div class="product-image-container">
                 <img src="${safeImage}" alt="${safeName}" class="product-img" loading="lazy">
                 ${safeBadge ? `<span class="product-badge">${safeBadge}</span>` : ''}
@@ -1293,7 +1295,7 @@ function addToCart(product, selectedToppings = []) {
 
     saveCartToStorage();
     updateCartUI();
-    renderProducts(); // Refresh buttons on catalog
+    renderProducts(true); // Refresh buttons on catalog (skip entrance animations)
     
     triggerHapticFeedback(40); // 40ms pulse
     showToast(`تمت إضافة "${product.nameAr}" بنجاح`, "success");
@@ -1318,7 +1320,7 @@ function updateCartItemQuantity(uniqueId, newQty) {
 
     saveCartToStorage();
     updateCartUI();
-    renderProducts();
+    renderProducts(true);
 }
 
 // --- Update Cart Drawer UI ---
@@ -1625,7 +1627,7 @@ function setupEventListeners() {
         cart = [];
         saveCartToStorage();
         updateCartUI();
-        renderProducts();
+        renderProducts(true);
         
         // Hide Modal
         checkoutForm.reset();
